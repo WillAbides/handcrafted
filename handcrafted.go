@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/alecthomas/kong"
+	"github.com/kballard/go-shellquote"
 )
 
 var goListFormat = `{{ range .GoFiles }}{{$.Dir}}/{{.}}
@@ -18,10 +19,13 @@ var goListFormat = `{{ range .GoFiles }}{{$.Dir}}/{{.}}
 {{ end }}{{ range .XTestGoFiles }}{{$.Dir}}/{{.}}
 {{ end }}`
 
-func main() {
+func init() {
 	if filepath.Separator != '/' {
 		goListFormat = strings.ReplaceAll(goListFormat, "/", string(filepath.Separator))
 	}
+}
+
+func main() {
 	ctx := kong.Parse(&cli)
 	ctx.FatalIfErrorf(ctx.Run())
 }
@@ -46,13 +50,15 @@ type listCmd struct {
 
 func (l *listCmd) Run() error {
 	pReader, pWriter := io.Pipe()
-	cmd := l.cmd(pWriter)
-
+	cmd, err := l.cmd(pWriter)
+	if err != nil {
+		return err
+	}
 	filterErrs := make(chan error)
 	go func() {
 		filterErrs <- filterFiles(pReader, os.Stdout)
 	}()
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		return fmt.Errorf("error running go list: %v", err)
 	}
@@ -67,32 +73,21 @@ func (l *listCmd) Run() error {
 	return nil
 }
 
-func (l *listCmd) cmd(out io.Writer) *exec.Cmd {
-	var listArgs []string
-	for _, s := range strings.Split(l.GoListArgs, " ") {
-		if s != "" {
-			listArgs = append(listArgs, s)
-		}
+func (l *listCmd) cmd(out io.Writer) (*exec.Cmd, error) {
+	listArgs, err := shellquote.Split(l.GoListArgs)
+	if err != nil {
+		return nil, fmt.Errorf("invalid --go-list-args")
 	}
-	hasFormat := false
-	for _, arg := range listArgs {
-		if arg == "-f" {
-			hasFormat = true
-			break
-		}
-	}
-	if !hasFormat {
-		listArgs = append(listArgs, "-f", goListFormat)
-	}
+	listArgs = append(listArgs, "-f", goListFormat)
 	if len(l.BuildTags) > 0 {
-		listArgs = append(listArgs, "-tags", strings.Join(l.BuildTags, ","))
+		listArgs = append(listArgs, "-tags="+strings.Join(l.BuildTags, ","))
 	}
 	args := append([]string{"list"}, listArgs...)
 	args = append(args, l.Packages...)
 	cmd := exec.Command("go", args...) //nolint:gosec
 	cmd.Stdout = out
 	cmd.Dir = l.Dir
-	return cmd
+	return cmd, nil
 }
 
 func filterFiles(in io.Reader, out io.Writer) error {

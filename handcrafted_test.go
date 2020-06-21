@@ -39,6 +39,25 @@ func Test_filterFiles(t *testing.T) {
 	})
 }
 
+func Test_listCmd_cmd(t *testing.T) {
+	var out bytes.Buffer
+	lc := &listCmd{
+		BuildTags:  []string{"tag1", "tag2"},
+		GoListArgs: `-j "\"foo\" 'bar'" -baz -qux`,
+		Packages:   []string{"pkg1/...", "pkg2/..."},
+		Dir:        filepath.FromSlash("/tmp"),
+	}
+	wantArgs := []string{"go", "list",
+		"-j", `"foo" 'bar'`, "-baz", "-qux",
+		"-f", goListFormat,
+		"-tags=tag1,tag2", "pkg1/...", "pkg2/..."}
+	cmd, err := lc.cmd(&out)
+	require.NoError(t, err)
+	require.Equal(t, &out, cmd.Stdout)
+	require.Equal(t, filepath.FromSlash("/tmp"), cmd.Dir)
+	require.Equal(t, wantArgs, cmd.Args)
+}
+
 func Test_checkFilename(t *testing.T) {
 	t.Run("handcrafted", func(t *testing.T) {
 		filename := filepath.Join(pwd(t), "handcrafted_test.go")
