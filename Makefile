@@ -9,3 +9,6 @@ bin/golangci-lint:
 
 bin/shellcheck:
 	script/bindown install $(notdir $@)
+
+bin/handcrafted: gobuildcache
+	go build -o $@ .
