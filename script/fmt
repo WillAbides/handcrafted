@@ -2,7 +2,10 @@
 
 set -e
 
-CDPATH="" cd -- "$(dirname -- "$(dirname -- "$0")")"
+cd "$(git rev-parse --show-toplevel)"
 
-make -s bin/gofumpt
-bin/gofumpt -w .
+make -s bin/handcrafted bin/gofumpt
+
+git ls-files -o -c --exclude-standard *.go |
+ bin/handcrafted |
+ xargs gofumpt -w
