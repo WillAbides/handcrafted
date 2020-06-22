@@ -6,6 +6,6 @@ cd "$(git rev-parse --show-toplevel)"
 
 make -s bin/handcrafted bin/gofumpt
 
-git ls-files -o -c --exclude-standard *.go |
+git ls-files -o -c --exclude-standard -- *.go |
  bin/handcrafted |
  xargs gofumpt -w

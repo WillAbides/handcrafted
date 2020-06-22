@@ -21,7 +21,7 @@ Use with `find` to do the same recursively:
 
 Use with `git ls-files` to list all handcrafted files in the git repo
 
-`git ls-files *.go | handcrafted`
+`git ls-files -- *.go | handcrafted`
 
 Use with `go list` to get generated files from an arbitrary package:
 
@@ -47,7 +47,7 @@ if ! [ -f "bin/handcrafted" ]; then
   GOBIN="$(pwd)/bin" go get github.com/willabides/handcrafted
 fi
 
-git ls-files -o -c --exclude-standard *.go |
+git ls-files -o -c --exclude-standard -- *.go |
  bin/handcrafted | 
  xargs goimports -w
 
