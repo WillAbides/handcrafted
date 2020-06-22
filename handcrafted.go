@@ -2,136 +2,82 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"io"
+	"log"
 	"os"
-	"os/exec"
-	"path/filepath"
 	"regexp"
-	"strings"
-
-	"github.com/alecthomas/kong"
-	"github.com/kballard/go-shellquote"
 )
 
-var goListFormat = `{{ range .GoFiles }}{{$.Dir}}/{{.}}
-{{ end }}{{ range .TestGoFiles }}{{$.Dir}}/{{.}}
-{{ end }}{{ range .XTestGoFiles }}{{$.Dir}}/{{.}}
-{{ end }}`
+// pattern is from https://golang.org/cmd/go/#hdr-Generate_Go_files_by_processing_source
+var generatedExp = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
-func init() {
-	if filepath.Separator != '/' {
-		goListFormat = strings.ReplaceAll(goListFormat, "/", string(filepath.Separator))
+var (
+	stdin  io.Reader = os.Stdin
+	stdout io.Writer = os.Stdout
+	fatal            = log.Fatal
+)
+
+func fatalIfErr(err error, msg string) {
+	if err == nil {
+		return
 	}
+	if msg == "" {
+		msg = err.Error()
+	}
+	fatal(msg)
 }
 
 func main() {
-	ctx := kong.Parse(&cli)
-	ctx.FatalIfErrorf(ctx.Run())
-}
-
-var cli struct {
-	Filter filterCmd `kong:"cmd,help='filter filenames from stdin removing generated files'"`
-	List   listCmd   `kong:"cmd,help='list handcrafted files'"`
-}
-
-type filterCmd struct{}
-
-func (f *filterCmd) Run(ctx *kong.Context) error {
-	return filterFiles(os.Stdin, ctx.Stdout)
-}
-
-type listCmd struct {
-	BuildTags  []string `kong:"short=t,help='build tags'"`
-	GoListArgs string   `kong:"short=l,help='additional args to pass to go-list'"`
-	Packages   []string `kong:"arg,required,help='each package must start with .'"`
-	Dir        string   `kong:"type=existingdir,default='.',help='run in this directory'"`
-}
-
-func (l *listCmd) Run() error {
-	pReader, pWriter := io.Pipe()
-	cmd, err := l.cmd(pWriter)
-	if err != nil {
-		return err
+	cmdLine := flag.NewFlagSet("handcrafted", flag.ExitOnError)
+	wantGenerated := cmdLine.Bool("generated", false, "show generated files instead of handcrafted")
+	_ = cmdLine.Parse(os.Args[1:]) //nolint:errcheck // err is always nil in mode flag.ExitOnError
+	checker := checkHandcrafted
+	if *wantGenerated {
+		checker = checkGenerated
 	}
-	filterErrs := make(chan error)
-	go func() {
-		filterErrs <- filterFiles(pReader, os.Stdout)
-	}()
-	err = cmd.Run()
-	if err != nil {
-		return fmt.Errorf("error running go list: %v", err)
-	}
-	err = pWriter.Close()
-	if err != nil {
-		panic("PipeWriter.Close always returns nil")
-	}
-	err = <-filterErrs
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func (l *listCmd) cmd(out io.Writer) (*exec.Cmd, error) {
-	listArgs, err := shellquote.Split(l.GoListArgs)
-	if err != nil {
-		return nil, fmt.Errorf("invalid --go-list-args")
-	}
-	listArgs = append(listArgs, "-f", goListFormat)
-	if len(l.BuildTags) > 0 {
-		listArgs = append(listArgs, "-tags="+strings.Join(l.BuildTags, ","))
-	}
-	args := append([]string{"list"}, listArgs...)
-	args = append(args, l.Packages...)
-	cmd := exec.Command("go", args...) //nolint:gosec
-	cmd.Stdout = out
-	cmd.Dir = l.Dir
-	return cmd, nil
-}
-
-func filterFiles(in io.Reader, out io.Writer) error {
-	scanner := bufio.NewScanner(in)
+	scanner := bufio.NewScanner(stdin)
 	for scanner.Scan() {
 		filename := scanner.Text()
-		ok, err := checkFilename(filename)
-		if err != nil {
-			return err
-		}
+		ok, err := checker(filename)
+		fatalIfErr(err, "")
 		if ok {
-			_, err = out.Write([]byte(filename + "\n"))
-			if err != nil {
-				return fmt.Errorf("error writing output")
-			}
+			_, err = stdout.Write([]byte(filename + "\n"))
+			fatalIfErr(err, "error writing to stdout")
 		}
 	}
-	return scanner.Err()
+	fatalIfErr(scanner.Err(), "error reading from stdin")
 }
 
-func checkFilename(filename string) (bool, error) {
+func checkGenerated(filename string) (bool, error) {
+	return checkFilename(filename, true)
+}
+
+func checkHandcrafted(filename string) (bool, error) {
+	return checkFilename(filename, false)
+}
+
+func checkFilename(filename string, wantGenerated bool) (bool, error) {
 	file, err := os.Open(filename) //nolint:gosec
 	if err != nil {
 		return false, fmt.Errorf("could not open file %s", filename)
 	}
 	defer func() {
-		_ = file.Close() //nolint:errcheck // this isn't important
+		_ = file.Close() //nolint:errcheck // this error isn't important
 	}()
-	res, err := isFileGenerated(file)
-	if err != nil {
-		return false, fmt.Errorf("error reading file %s", filename)
-	}
-	return !res, nil
-}
 
-// pattern is from https://golang.org/cmd/go/#hdr-Generate_Go_files_by_processing_source
-var generatedExp = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
-
-func isFileGenerated(rdr io.Reader) (bool, error) {
-	scanner := bufio.NewScanner(rdr)
+	isGenerated := false
+	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		if generatedExp.Match(scanner.Bytes()) {
-			return true, nil
+			isGenerated = true
+			break
 		}
 	}
-	return false, scanner.Err()
+	if scanner.Err() != nil {
+		return false, fmt.Errorf("error reading file %s", filename)
+	}
+
+	return isGenerated == wantGenerated, nil
 }

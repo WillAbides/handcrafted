@@ -3,128 +3,81 @@ package main
 import (
 	"bytes"
 	"io"
-	"io/ioutil"
 	"os"
-	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
-
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
-func pwd(t *testing.T) string {
+func setup(t *testing.T, in io.Reader, out io.Writer, args ...string) {
+	origStdin := stdin
+	stdin = in
+	origStdout := stdout
+	stdout = out
+	origArgs := os.Args
+	os.Args = append([]string{"handcrafted"}, args...)
+	t.Cleanup(func() {
+		stdin = origStdin
+		stdout = origStdout
+		os.Args = origArgs
+	})
+}
+
+func withFatal(t *testing.T, fn func(...interface{})) {
+	orig := fatal
+	fatal = fn
+	t.Cleanup(func() {
+		fatal = orig
+	})
+}
+
+func filesList(files ...string) string {
+	return strings.Join(files, "\n") + "\n"
+}
+
+func Test_main(t *testing.T) {
+	t.Run("generated", func(t *testing.T) {
+		input := strings.NewReader(filesList("./handcrafted.go", "./handcrafted_test.go", "./generated.go"))
+		want := filesList("./generated.go")
+		out := new(bytes.Buffer)
+		setup(t, input, out, "-generated")
+		main()
+		requireString(t, want, out.String())
+	})
+
+	t.Run("handcrafted", func(t *testing.T) {
+		input := strings.NewReader(filesList("./handcrafted.go", "./handcrafted_test.go", "./generated.go"))
+		want := filesList("./handcrafted.go", "./handcrafted_test.go")
+		out := new(bytes.Buffer)
+		setup(t, input, out)
+		main()
+		requireString(t, want, out.String())
+	})
+
+	t.Run("missing file", func(t *testing.T) {
+		input := strings.NewReader(filesList("./handcrafted.go", "./missing.go", "./handcrafted_test.go"))
+		out := new(bytes.Buffer)
+		setup(t, input, out)
+		fatalCalls := 0
+		withFatal(t, func(errs ...interface{}) {
+			fatalCalls++
+			requireInt(t, 1, len(errs))
+			requireString(t, "could not open file ./missing.go", errs[0].(string))
+		})
+		main()
+		requireInt(t, 1, fatalCalls)
+	})
+}
+
+func requireInt(t *testing.T, want, got int) {
 	t.Helper()
-	wd, err := os.Getwd()
-	require.NoError(t, err)
-	return wd
-}
-
-func Test_filterFiles(t *testing.T) {
-	t.Run("success", func(t *testing.T) {
-		wd := pwd(t)
-		want := []string{
-			filepath.Join(wd, "handcrafted.go"),
-			filepath.Join(wd, "handcrafted_test.go"),
-		}
-		inFiles := append(want, filepath.Join(wd, "generated.go"))
-		input := strings.NewReader(strings.Join(inFiles, "\n") + "\n")
-		var out bytes.Buffer
-		err := filterFiles(input, &out)
-		require.NoError(t, err)
-		got := strings.Split(strings.TrimSuffix(out.String(), "\n"), "\n")
-		sort.Strings(got)
-		require.Equal(t, want, got)
-	})
-}
-
-func Test_listCmd_cmd(t *testing.T) {
-	var out bytes.Buffer
-	lc := &listCmd{
-		BuildTags:  []string{"tag1", "tag2"},
-		GoListArgs: `-j "\"foo\" 'bar'" -baz -qux`,
-		Packages:   []string{"pkg1/...", "pkg2/..."},
-		Dir:        filepath.FromSlash("/tmp"),
+	if want != got {
+		t.Fatalf("wanted %d but got %d", want, got)
 	}
-	wantArgs := []string{"go", "list",
-		"-j", `"foo" 'bar'`, "-baz", "-qux",
-		"-f", goListFormat,
-		"-tags=tag1,tag2", "pkg1/...", "pkg2/..."}
-	cmd, err := lc.cmd(&out)
-	require.NoError(t, err)
-	require.Equal(t, &out, cmd.Stdout)
-	require.Equal(t, filepath.FromSlash("/tmp"), cmd.Dir)
-	require.Equal(t, wantArgs, cmd.Args)
 }
 
-func Test_checkFilename(t *testing.T) {
-	t.Run("handcrafted", func(t *testing.T) {
-		filename := filepath.Join(pwd(t), "handcrafted_test.go")
-		got, err := checkFilename(filename)
-		require.NoError(t, err)
-		require.True(t, got)
-	})
-
-	t.Run("generated", func(t *testing.T) {
-		filename := filepath.Join(pwd(t), "generated.go")
-		got, err := checkFilename(filename)
-		require.NoError(t, err)
-		require.False(t, got)
-	})
-
-	t.Run("non-existant file", func(t *testing.T) {
-		filename := filepath.Join(pwd(t), "fake.go")
-		got, err := checkFilename(filename)
-		require.Error(t, err)
-		require.False(t, got)
-	})
-}
-
-func Test_isFileGenerated(t *testing.T) {
-	t.Run("generated", func(t *testing.T) {
-		content, err := ioutil.ReadFile("generated.go")
-		require.NoError(t, err)
-		got, err := isFileGenerated(bytes.NewReader(content))
-		require.NoError(t, err)
-		require.True(t, got)
-	})
-
-	t.Run("handcrafted", func(t *testing.T) {
-		content := `
-package main
-
-import "fmt"
-
-func main() {
-	fmt.Println("hello world")
-}
-`
-		got, err := isFileGenerated(strings.NewReader(content))
-		require.NoError(t, err)
-		require.False(t, got)
-	})
-
-	t.Run("error rdr", func(t *testing.T) {
-		in := errReader{
-			reader: strings.NewReader("package main"),
-			err:    assert.AnError,
-		}
-		got, err := isFileGenerated(&in)
-		require.EqualError(t, err, assert.AnError.Error())
-		require.False(t, got)
-	})
-}
-
-type errReader struct {
-	reader io.Reader
-	err    error
-}
-
-func (e *errReader) Read(p []byte) (n int, err error) {
-	got, err := e.reader.Read(p)
-	if err == io.EOF {
-		err = e.err
+func requireString(t *testing.T, want, got string) {
+	t.Helper()
+	if want != got {
+		t.Fatalf("wanted %q but got %q", want, got)
 	}
-	return got, err
 }
