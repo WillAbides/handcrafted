@@ -59,7 +59,7 @@ func checkHandcrafted(filename string) (bool, error) {
 }
 
 func checkFilename(filename string, wantGenerated bool) (bool, error) {
-	file, err := os.Open(filename) //nolint:gosec
+	file, err := os.Open(filename) //nolint:gosec // filename comes from stdin
 	if err != nil {
 		return false, fmt.Errorf("could not open file %s", filename)
 	}

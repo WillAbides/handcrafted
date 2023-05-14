@@ -1,0 +1,130 @@
+systems:
+- darwin/amd64
+- darwin/arm64
+- linux/amd64
+dependencies:
+  gofumpt:
+    template: origin#gofumpt
+    vars:
+      version: 0.5.0
+  golangci-lint:
+    template: origin#golangci-lint
+    vars:
+      version: 1.51.2
+  shellcheck:
+    template: origin#shellcheck
+    vars:
+      version: 0.9.0
+templates:
+  origin#gofumpt:
+    homepage: https://github.com/mvdan/gofumpt
+    description: A stricter gofmt
+    url: https://github.com/mvdan/gofumpt/releases/download/v{{.version}}/gofumpt_v{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
+    archive_path: gofumpt_v{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
+    bin: gofumpt
+    vars:
+      archivePathSuffix: ""
+      urlSuffix: ""
+    required_vars:
+    - version
+    overrides:
+    - matcher:
+        os:
+        - windows
+      dependency:
+        vars:
+          urlSuffix: .exe
+    systems:
+    - darwin/amd64
+    - darwin/arm64
+    - linux/386
+    - linux/amd64
+    - linux/arm64
+    - windows/386
+    - windows/amd64
+  origin#golangci-lint:
+    homepage: https://github.com/golangci/golangci-lint
+    description: Fast linters Runner for Go
+    url: https://github.com/golangci/golangci-lint/releases/download/v{{.version}}/golangci-lint-{{.version}}-{{.os}}-{{.arch}}{{.urlSuffix}}
+    archive_path: golangci-lint-{{.version}}-{{.os}}-{{.arch}}/golangci-lint{{.archivePathSuffix}}
+    bin: golangci-lint
+    vars:
+      archivePathSuffix: ""
+      urlSuffix: .tar.gz
+    required_vars:
+    - version
+    overrides:
+    - matcher:
+        os:
+        - windows
+      dependency:
+        vars:
+          archivePathSuffix: .exe
+          urlSuffix: .zip
+    systems:
+    - darwin/amd64
+    - darwin/arm64
+    - freebsd/386
+    - freebsd/amd64
+    - linux/386
+    - linux/amd64
+    - linux/arm64
+    - linux/loong64
+    - linux/mips64
+    - linux/mips64le
+    - linux/ppc64le
+    - linux/riscv64
+    - linux/s390x
+    - netbsd/386
+    - netbsd/amd64
+    - windows/386
+    - windows/amd64
+    - windows/arm64
+  origin#shellcheck:
+    homepage: https://github.com/koalaman/shellcheck
+    description: ShellCheck, a static analysis tool for shell scripts
+    url: https://github.com/koalaman/shellcheck/releases/download/v{{.version}}/shellcheck-v{{.version}}.{{.os}}.{{.arch}}{{.urlSuffix}}
+    archive_path: shellcheck-v{{.version}}/shellcheck{{.archivePathSuffix}}
+    bin: shellcheck
+    vars:
+      archivePathSuffix: ""
+      urlSuffix: .tar.xz
+    required_vars:
+    - version
+    overrides:
+    - matcher:
+        os:
+        - windows
+      dependency:
+        url: https://github.com/koalaman/shellcheck/releases/download/v{{.version}}/shellcheck-v{{.version}}.zip
+        archive_path: shellcheck.exe
+    - matcher:
+        arch:
+        - arm64
+        os:
+        - darwin
+      dependency:
+        substitutions:
+          arch:
+            arm64: x86_64
+    substitutions:
+      arch:
+        amd64: x86_64
+        arm64: aarch64
+    systems:
+    - darwin/amd64
+    - darwin/arm64
+    - linux/amd64
+    - linux/arm64
+    - windows/amd64
+template_sources:
+  origin: https://raw.githubusercontent.com/WillAbides/bindown-templates/master/bindown.yml
+url_checksums:
+  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-darwin-amd64.tar.gz: 0549cbaa2df451cf3a2011a9d73a9cb127784d26749d9cd14c9f4818af104d44
+  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-darwin-arm64.tar.gz: 36e69882205a0e42a63ad57ec3015639c11051e03f0beb9cf7949c6451408960
+  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-linux-amd64.tar.gz: 4de479eb9d9bc29da51aec1834e7c255b333723d38dbd56781c68e5dddc6a90b
+  https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.darwin.x86_64.tar.xz: 7d3730694707605d6e60cec4efcb79a0632d61babc035aa16cda1b897536acf5
+  https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.linux.x86_64.tar.xz: 700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f
+  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_darwin_amd64: 870f05a23541aad3d20d208a3ea17606169a240f608ac1cf987426198c14b2ed
+  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_darwin_arm64: f2df95d5fad8498ad8eeb0be8abdb8bb8d05e8130b332cb69751dfd090fabac4
+  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_linux_amd64: 759c6ab56bfbf62cafb35944aef1e0104a117e0aebfe44816fd79ef4b28521e4
