@@ -4,8 +4,8 @@ set -e
 
 cd "$(git rev-parse --show-toplevel)"
 
-make -s bin/handcrafted bin/gofumpt
+script/bindown -q install gofumpt
 
 git ls-files -o -c --exclude-standard -- *.go |
- bin/handcrafted |
- xargs gofumpt -w
+ script/handcrafted |
+ xargs bin/gofumpt -w -extra
