@@ -65,7 +65,7 @@ jobs:
         if: steps.release-train.outputs.created-release == 'true'
         env:
           RELEASE_TAG: ${{ steps.release-train.outputs.release-tag }}
-          GH_TOKEN: ${{ github.token }}
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -e
           script/bindown -q install gh
