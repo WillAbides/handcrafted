@@ -5,6 +5,11 @@
 handcrafted is a simple command-line tool to help you list handcrafted go files (files that aren't generated). It
 takes a list of files in stdin, and outputs the matching files from the list to stdout.
 
+Files are classified using Go's standard generated-code marker, a comment of
+the form `// Code generated ... DO NOT EDIT.` before the `package` clause.
+Files without a valid package clause are omitted from both outputs. Unreadable
+files cause an error.
+
 ## Installation
 
 Download a binary from [GitHub Releases](https://github.com/WillAbides/handcrafted/releases),

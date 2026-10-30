@@ -2,16 +2,17 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
+	"go/ast"
+	"go/parser"
+	"go/scanner"
+	"go/token"
 	"io"
 	"log"
 	"os"
-	"regexp"
 )
-
-// pattern is from https://golang.org/cmd/go/#hdr-Generate_Go_files_by_processing_source
-var generatedExp = regexp.MustCompile(`^// Code generated .* DO NOT EDIT\.$`)
 
 var (
 	stdin  io.Reader = os.Stdin
@@ -67,17 +68,20 @@ func checkFilename(filename string, wantGenerated bool) (bool, error) {
 		_ = file.Close() //nolint:errcheck // this error isn't important
 	}()
 
-	isGenerated := false
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		if generatedExp.Match(scanner.Bytes()) {
-			isGenerated = true
-			break
-		}
+	parsed, err := parser.ParseFile(
+		token.NewFileSet(),
+		filename,
+		file,
+		parser.ParseComments|parser.PackageClauseOnly|parser.SkipObjectResolution,
+	)
+	var parseErrs scanner.ErrorList
+	if errors.As(err, &parseErrs) {
+		// Files without a valid package clause are neither handcrafted nor generated.
+		return false, nil
 	}
-	if scanner.Err() != nil {
-		return false, fmt.Errorf("error reading file %s", filename)
+	if err != nil {
+		return false, fmt.Errorf("could not read file %s: %w", filename, err)
 	}
 
-	return isGenerated == wantGenerated, nil
+	return ast.IsGenerated(parsed) == wantGenerated, nil
 }
