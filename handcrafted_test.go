@@ -1,83 +1,67 @@
 package main
 
 import (
-	"bytes"
-	"io"
+	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/rogpeppe/go-internal/testscript"
 )
 
-func setup(t *testing.T, in io.Reader, out io.Writer, args ...string) {
-	origStdin := stdin
-	stdin = in
-	origStdout := stdout
-	stdout = out
-	origArgs := os.Args
-	os.Args = append([]string{"handcrafted"}, args...)
-	t.Cleanup(func() {
-		stdin = origStdin
-		stdout = origStdout
-		os.Args = origArgs
+func TestMain(m *testing.M) {
+	testscript.Main(m, map[string]func(){
+		"handcrafted": main,
 	})
 }
 
-func withFatal(t *testing.T, fn func(...any)) {
-	orig := fatal
-	fatal = fn
-	t.Cleanup(func() {
-		fatal = orig
+func TestScript(t *testing.T) {
+	t.Parallel()
+
+	testscript.Run(t, testscript.Params{
+		Dir: "testdata/script",
 	})
 }
 
-func filesList(files ...string) string {
-	return strings.Join(files, "\n") + "\n"
-}
+func TestCheckFilenameLongComment(t *testing.T) {
+	t.Parallel()
 
-func Test_main(t *testing.T) {
-	t.Run("generated", func(t *testing.T) {
-		input := strings.NewReader(filesList("./handcrafted.go", "./handcrafted_test.go", "./generated.go"))
-		want := filesList("./generated.go")
-		out := new(bytes.Buffer)
-		setup(t, input, out, "-generated")
-		main()
-		requireString(t, want, out.String())
-	})
+	filename := filepath.Join(t.TempDir(), "example.go")
+	source := "// " + strings.Repeat("x", 70*1024) + "\npackage example\n"
+	err := os.WriteFile(filename, []byte(source), 0o600)
+	if err != nil {
+		t.Fatal(err)
+	}
 
-	t.Run("handcrafted", func(t *testing.T) {
-		input := strings.NewReader(filesList("./handcrafted.go", "./handcrafted_test.go", "./generated.go"))
-		want := filesList("./handcrafted.go", "./handcrafted_test.go")
-		out := new(bytes.Buffer)
-		setup(t, input, out)
-		main()
-		requireString(t, want, out.String())
-	})
+	generated, err := checkGenerated(filename)
+	if err != nil {
+		t.Fatalf("checkGenerated: %v", err)
+	}
+	if generated {
+		t.Error("checkGenerated = true, want false")
+	}
 
-	t.Run("missing file", func(t *testing.T) {
-		input := strings.NewReader(filesList("./handcrafted.go", "./missing.go", "./handcrafted_test.go"))
-		out := new(bytes.Buffer)
-		setup(t, input, out)
-		fatalCalls := 0
-		withFatal(t, func(errs ...any) {
-			fatalCalls++
-			requireInt(t, 1, len(errs))
-			requireString(t, "could not open file ./missing.go", errs[0].(string))
-		})
-		main()
-		requireInt(t, 1, fatalCalls)
-	})
-}
-
-func requireInt(t *testing.T, want, got int) {
-	t.Helper()
-	if want != got {
-		t.Fatalf("wanted %d but got %d", want, got)
+	handcrafted, err := checkHandcrafted(filename)
+	if err != nil {
+		t.Fatalf("checkHandcrafted: %v", err)
+	}
+	if !handcrafted {
+		t.Error("checkHandcrafted = false, want true")
 	}
 }
 
-func requireString(t *testing.T, want, got string) {
-	t.Helper()
-	if want != got {
-		t.Fatalf("wanted %q but got %q", want, got)
+func TestCheckFilenameReadError(t *testing.T) {
+	t.Parallel()
+
+	filename := t.TempDir()
+	_, err := checkGenerated(filename)
+	if err == nil {
+		t.Fatal("checkGenerated succeeded for a directory")
+	}
+
+	_, isPathError := errors.AsType[*os.PathError](err)
+	if !isPathError {
+		t.Errorf("checkGenerated error %q does not wrap the read error", err)
 	}
 }
