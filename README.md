@@ -81,7 +81,9 @@ and installed automatically by `script/bindown`.
 | `script/generate --check` | Check generation in an isolated worktree, including uncommitted changes |
 | `script/cibuild` | Run CI checks and build snapshot binaries |
 
-Pass Go test flags to `script/test`, for example `script/test -run Test_main`.
+Pass Go test flags to `script/test`, for example `script/test -run TestScript`.
+CLI scenarios are [testscript](https://pkg.go.dev/github.com/rogpeppe/go-internal/testscript)
+archives in `testdata/script`.
 
 CI checks pull requests and pushes to `main`. Release-train validates release
 labels on pull requests and publishes releases from `main` only after CI passes.
