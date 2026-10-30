@@ -1,4 +1,5 @@
 #!/bin/sh
+#/ script/handcrafted builds and runs the local command.
 
 set -e
 

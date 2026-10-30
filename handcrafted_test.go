@@ -22,7 +22,7 @@ func setup(t *testing.T, in io.Reader, out io.Writer, args ...string) {
 	})
 }
 
-func withFatal(t *testing.T, fn func(...interface{})) {
+func withFatal(t *testing.T, fn func(...any)) {
 	orig := fatal
 	fatal = fn
 	t.Cleanup(func() {
@@ -58,7 +58,7 @@ func Test_main(t *testing.T) {
 		out := new(bytes.Buffer)
 		setup(t, input, out)
 		fatalCalls := 0
-		withFatal(t, func(errs ...interface{}) {
+		withFatal(t, func(errs ...any) {
 			fatalCalls++
 			requireInt(t, 1, len(errs))
 			requireString(t, "could not open file ./missing.go", errs[0].(string))
