@@ -1,7 +1,8 @@
 #!/bin/sh
+#/ script/test runs tests and accepts additional go test arguments.
 
 set -e
 
-CDPATH="" cd -- "$(dirname -- "$(dirname -- "$0")")"
+CDPATH="" cd -- "$(dirname -- "$0")/.."
 
-go test -race -covermode=atomic ./...
+go test -race -covermode=atomic ./... "$@"

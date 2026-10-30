@@ -1,29 +1,79 @@
 systems:
-- darwin/amd64
-- darwin/arm64
-- linux/amd64
+  - darwin/amd64
+  - darwin/arm64
+  - linux/amd64
+  - windows/amd64
 dependencies:
+  gh:
+    template: origin#gh
+    vars:
+      version: 2.88.1
   gofumpt:
     template: origin#gofumpt
     vars:
-      version: 0.5.0
+      version: 0.12.0
   golangci-lint:
     template: origin#golangci-lint
     vars:
-      version: 1.51.2
+      version: 2.15.0
   goreleaser:
     template: origin#goreleaser
     vars:
-      version: 1.18.2
-  semver-next:
-    template: origin#semver-next
-    vars:
-      version: 0.11.3
+      version: 2.14.3
   shellcheck:
     template: origin#shellcheck
     vars:
-      version: 0.9.0
+      version: 0.11.0
+  shfmt:
+    template: origin#shfmt
+    vars:
+      version: 3.13.0
 templates:
+  origin#gh:
+    homepage: https://github.com/cli/cli
+    description: GitHub’s official command line tool
+    url: https://github.com/cli/cli/releases/download/v{{.version}}/gh_{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
+    archive_path: gh_{{.version}}_{{.os}}_{{.arch}}/bin/gh{{.archivePathSuffix}}
+    bin: gh
+    vars:
+      archivePathSuffix: ""
+      urlSuffix: .zip
+    overrides:
+      - matcher:
+          os:
+            - windows
+        dependency:
+          archive_path: bin/gh{{.archivePathSuffix}}
+          vars:
+            archivePathSuffix: .exe
+      - matcher:
+          os:
+            - linux
+        dependency:
+          vars:
+            urlSuffix: .tar.gz
+      - matcher:
+          os:
+            - darwin
+          version:
+            - < 2.28.0
+        dependency:
+          vars:
+            urlSuffix: .tar.gz
+    substitutions:
+      os:
+        darwin: macOS
+    systems:
+      - darwin/amd64
+      - darwin/arm64
+      - linux/386
+      - linux/amd64
+      - linux/arm64
+      - windows/386
+      - windows/amd64
+      - windows/arm64
+    required_vars:
+      - version
   origin#gofumpt:
     homepage: https://github.com/mvdan/gofumpt
     description: A stricter gofmt
@@ -33,23 +83,23 @@ templates:
     vars:
       archivePathSuffix: ""
       urlSuffix: ""
-    required_vars:
-    - version
     overrides:
-    - matcher:
-        os:
-        - windows
-      dependency:
-        vars:
-          urlSuffix: .exe
+      - matcher:
+          os:
+            - windows
+        dependency:
+          vars:
+            urlSuffix: .exe
     systems:
-    - darwin/amd64
-    - darwin/arm64
-    - linux/386
-    - linux/amd64
-    - linux/arm64
-    - windows/386
-    - windows/amd64
+      - darwin/amd64
+      - darwin/arm64
+      - linux/386
+      - linux/amd64
+      - linux/arm64
+      - windows/386
+      - windows/amd64
+    required_vars:
+      - version
   origin#golangci-lint:
     homepage: https://github.com/golangci/golangci-lint
     description: Fast linters Runner for Go
@@ -59,35 +109,35 @@ templates:
     vars:
       archivePathSuffix: ""
       urlSuffix: .tar.gz
-    required_vars:
-    - version
     overrides:
-    - matcher:
-        os:
-        - windows
-      dependency:
-        vars:
-          archivePathSuffix: .exe
-          urlSuffix: .zip
+      - matcher:
+          os:
+            - windows
+        dependency:
+          vars:
+            archivePathSuffix: .exe
+            urlSuffix: .zip
     systems:
-    - darwin/amd64
-    - darwin/arm64
-    - freebsd/386
-    - freebsd/amd64
-    - linux/386
-    - linux/amd64
-    - linux/arm64
-    - linux/loong64
-    - linux/mips64
-    - linux/mips64le
-    - linux/ppc64le
-    - linux/riscv64
-    - linux/s390x
-    - netbsd/386
-    - netbsd/amd64
-    - windows/386
-    - windows/amd64
-    - windows/arm64
+      - darwin/amd64
+      - darwin/arm64
+      - freebsd/386
+      - freebsd/amd64
+      - linux/386
+      - linux/amd64
+      - linux/arm64
+      - linux/loong64
+      - linux/mips64
+      - linux/mips64le
+      - linux/ppc64le
+      - linux/riscv64
+      - linux/s390x
+      - netbsd/386
+      - netbsd/amd64
+      - windows/386
+      - windows/amd64
+      - windows/arm64
+    required_vars:
+      - version
   origin#goreleaser:
     homepage: https://github.com/goreleaser/goreleaser
     description: Deliver Go binaries as fast and easily as possible
@@ -97,22 +147,20 @@ templates:
     vars:
       archivePathSuffix: ""
       urlSuffix: .tar.gz
-    required_vars:
-    - version
     overrides:
-    - matcher:
-        os:
-        - windows
-      dependency:
-        vars:
-          archivePathSuffix: .exe
-          urlSuffix: .zip
-        substitutions:
-          arch:
-            "386": i386
-            amd64: x86_64
+      - matcher:
           os:
-            windows: Windows
+            - windows
+        dependency:
+          vars:
+            archivePathSuffix: .exe
+            urlSuffix: .zip
+          substitutions:
+            arch:
+              "386": i386
+              amd64: x86_64
+            os:
+              windows: Windows
     substitutions:
       arch:
         "386": i386
@@ -121,41 +169,17 @@ templates:
         darwin: Darwin
         linux: Linux
     systems:
-    - darwin/amd64
-    - darwin/arm64
-    - linux/386
-    - linux/amd64
-    - linux/arm64
-    - linux/ppc64
-    - windows/386
-    - windows/amd64
-    - windows/arm64
-  origin#semver-next:
-    homepage: https://github.com/WillAbides/semver-next
-    url: https://github.com/WillAbides/semver-next/releases/download/v{{.version}}/semver-next_{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
-    archive_path: semver-next{{.archivePathSuffix}}
-    bin: semver-next
-    vars:
-      archivePathSuffix: ""
-      urlSuffix: .tar.gz
+      - darwin/amd64
+      - darwin/arm64
+      - linux/386
+      - linux/amd64
+      - linux/arm64
+      - linux/ppc64
+      - windows/386
+      - windows/amd64
+      - windows/arm64
     required_vars:
-    - version
-    overrides:
-    - matcher:
-        os:
-        - windows
-      dependency:
-        vars:
-          archivePathSuffix: .exe
-    systems:
-    - darwin/amd64
-    - darwin/arm64
-    - linux/386
-    - linux/amd64
-    - linux/arm64
-    - windows/386
-    - windows/amd64
-    - windows/arm64
+      - version
   origin#shellcheck:
     homepage: https://github.com/koalaman/shellcheck
     description: ShellCheck, a static analysis tool for shell scripts
@@ -165,48 +189,84 @@ templates:
     vars:
       archivePathSuffix: ""
       urlSuffix: .tar.xz
-    required_vars:
-    - version
     overrides:
-    - matcher:
-        os:
-        - windows
-      dependency:
-        url: https://github.com/koalaman/shellcheck/releases/download/v{{.version}}/shellcheck-v{{.version}}.zip
-        archive_path: shellcheck.exe
-    - matcher:
-        arch:
-        - arm64
-        os:
-        - darwin
-      dependency:
-        substitutions:
+      - matcher:
+          os:
+            - windows
+        dependency:
+          url: https://github.com/koalaman/shellcheck/releases/download/v{{.version}}/shellcheck-v{{.version}}.zip
+          archive_path: shellcheck.exe
+      - matcher:
           arch:
-            arm64: x86_64
+            - arm64
+          os:
+            - darwin
+        dependency:
+          substitutions:
+            arch:
+              arm64: x86_64
     substitutions:
       arch:
         amd64: x86_64
         arm64: aarch64
     systems:
-    - darwin/amd64
-    - darwin/arm64
-    - linux/amd64
-    - linux/arm64
-    - windows/amd64
+      - darwin/amd64
+      - darwin/arm64
+      - linux/amd64
+      - linux/arm64
+      - windows/amd64
+    required_vars:
+      - version
+  origin#shfmt:
+    homepage: https://github.com/mvdan/sh
+    description: A shell parser, formatter, and interpreter with bash support; includes shfmt
+    url: https://github.com/mvdan/sh/releases/download/v{{.version}}/shfmt_v{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
+    archive_path: shfmt_v{{.version}}_{{.os}}_{{.arch}}{{.urlSuffix}}
+    bin: shfmt
+    vars:
+      archivePathSuffix: ""
+      urlSuffix: ""
+    overrides:
+      - matcher:
+          os:
+            - windows
+        dependency:
+          vars:
+            urlSuffix: .exe
+    systems:
+      - darwin/amd64
+      - darwin/arm64
+      - linux/386
+      - linux/amd64
+      - linux/arm
+      - linux/arm64
+      - windows/386
+      - windows/amd64
+    required_vars:
+      - version
 template_sources:
   origin: https://raw.githubusercontent.com/WillAbides/bindown-templates/master/bindown.yml
 url_checksums:
-  https://github.com/WillAbides/semver-next/releases/download/v0.11.3/semver-next_0.11.3_darwin_amd64.tar.gz: 4f7fbb6b16600bdbd049250a1389a01e08a1490f4ceb864b78a19be9f4f74e75
-  https://github.com/WillAbides/semver-next/releases/download/v0.11.3/semver-next_0.11.3_darwin_arm64.tar.gz: 44a42c6c347f3968c8db2cdf1a1ce61ffa3c0db0af5ae7febc21f19a1ff96afb
-  https://github.com/WillAbides/semver-next/releases/download/v0.11.3/semver-next_0.11.3_linux_amd64.tar.gz: 35b024a2ace9977672e78979f13e9bc48973c4a8f19ae7517f1796fbb91a6c11
-  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-darwin-amd64.tar.gz: 0549cbaa2df451cf3a2011a9d73a9cb127784d26749d9cd14c9f4818af104d44
-  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-darwin-arm64.tar.gz: 36e69882205a0e42a63ad57ec3015639c11051e03f0beb9cf7949c6451408960
-  https://github.com/golangci/golangci-lint/releases/download/v1.51.2/golangci-lint-1.51.2-linux-amd64.tar.gz: 4de479eb9d9bc29da51aec1834e7c255b333723d38dbd56781c68e5dddc6a90b
-  https://github.com/goreleaser/goreleaser/releases/download/v1.18.2/goreleaser_Darwin_arm64.tar.gz: 7eec9f4d0b86b2c9c9f6af1770a11315998bd4d4617633b0a73eeb036e97393e
-  https://github.com/goreleaser/goreleaser/releases/download/v1.18.2/goreleaser_Darwin_x86_64.tar.gz: 95338eed333347152e23837b68a8c6ce0c62b9f5abb68bd5b4b08178766400b9
-  https://github.com/goreleaser/goreleaser/releases/download/v1.18.2/goreleaser_Linux_x86_64.tar.gz: 811e0c63e347f78f3c8612a19ca8eeb564eb45f0265ce3f38aec39c8fdbcfa10
-  https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.darwin.x86_64.tar.xz: 7d3730694707605d6e60cec4efcb79a0632d61babc035aa16cda1b897536acf5
-  https://github.com/koalaman/shellcheck/releases/download/v0.9.0/shellcheck-v0.9.0.linux.x86_64.tar.xz: 700324c6dd0ebea0117591c6cc9d7350d9c7c5c287acbad7630fa17b1d4d9e2f
-  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_darwin_amd64: 870f05a23541aad3d20d208a3ea17606169a240f608ac1cf987426198c14b2ed
-  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_darwin_arm64: f2df95d5fad8498ad8eeb0be8abdb8bb8d05e8130b332cb69751dfd090fabac4
-  https://github.com/mvdan/gofumpt/releases/download/v0.5.0/gofumpt_v0.5.0_linux_amd64: 759c6ab56bfbf62cafb35944aef1e0104a117e0aebfe44816fd79ef4b28521e4
+  https://github.com/cli/cli/releases/download/v2.88.1/gh_2.88.1_linux_amd64.tar.gz: 36352a993b97e9758793cdb87f9ba674bd6d88c914488e122be78a1962203803
+  https://github.com/cli/cli/releases/download/v2.88.1/gh_2.88.1_macOS_amd64.zip: ff0fc4bdb9699f0c02e5bcdcbd09d0f8e4c4659aa5d30bcd39a3557ed7379b2e
+  https://github.com/cli/cli/releases/download/v2.88.1/gh_2.88.1_macOS_arm64.zip: bdbeed4821d450ef0d14821d856c05b308ab449fbf60527f298d96fbf5d2447b
+  https://github.com/cli/cli/releases/download/v2.88.1/gh_2.88.1_windows_amd64.zip: 8fdaac525d8919f9f8c265f99ffa26189e5f1fd3a35636adad4fd890a141a555
+  https://github.com/golangci/golangci-lint/releases/download/v2.15.0/golangci-lint-2.15.0-darwin-amd64.tar.gz: 767b899a28285e88ded2823d5dcc4bc5ef681173eb2d80f029a7b17ee4ece3b8
+  https://github.com/golangci/golangci-lint/releases/download/v2.15.0/golangci-lint-2.15.0-darwin-arm64.tar.gz: d1e409481a8ca846c4bc97e781eb5cb1bd5c23353a0b3977a1cbda1b1b6447d5
+  https://github.com/golangci/golangci-lint/releases/download/v2.15.0/golangci-lint-2.15.0-linux-amd64.tar.gz: 9b7fe6a6bf6334b98decf8d86b11415ea7889afdabdd1959fdce23af2a9ebcea
+  https://github.com/golangci/golangci-lint/releases/download/v2.15.0/golangci-lint-2.15.0-windows-amd64.zip: cd7ea6063c95de245e17e5246e42bdc14bb221792c429dbd239ab3a6ade6ca6a
+  https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Darwin_arm64.tar.gz: 6dae42fecaed39f36d0ac9ce98f36ee14804e483f5c1446e205796ac91b7be4e
+  https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Darwin_x86_64.tar.gz: d8fcc408826058986df90950ce2824ed037e57e3229eb23dcf0badc8d23123bc
+  https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Linux_x86_64.tar.gz: dc7faeeeb6da8bdfda788626263a4ae725892a8c7504b975c3234127d4a44579
+  https://github.com/goreleaser/goreleaser/releases/download/v2.14.3/goreleaser_Windows_x86_64.zip: 3deea8ff471aa258a2d99f3e5302971d7028647ae8ddaf103257a8113e485a31
+  https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.darwin.x86_64.tar.xz: 3c89db4edcab7cf1c27bff178882e0f6f27f7afdf54e859fa041fca10febe4c6
+  https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.linux.x86_64.tar.xz: 8c3be12b05d5c177a04c29e3c78ce89ac86f1595681cab149b65b97c4e227198
+  https://github.com/koalaman/shellcheck/releases/download/v0.11.0/shellcheck-v0.11.0.zip: 8a4e35ab0b331c85d73567b12f2a444df187f483e5079ceffa6bda1faa2e740e
+  https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_darwin_amd64: 1d3626892a321aca96a891696eaecb8f68e69e90582c2b55672d5ca210fd5fa8
+  https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_darwin_arm64: 1a3e325b956ed12c21031d9e13382bd51a4fabb57de8d40428819b9583c3cfb9
+  https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_linux_amd64: 3bc4fcad497439918f5f56d4987de4709a99da0a355e6bec13a7278532b01d38
+  https://github.com/mvdan/gofumpt/releases/download/v0.12.0/gofumpt_v0.12.0_windows_amd64.exe: 66bd679908b64864fc85417e7ea01148774b477364b9a02ab1c194333a55c997
+  https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_darwin_amd64: b6890a0009abf71d36d7c536ad56e3132c547ceb77cd5d5ee62b3469ab4e9417
+  https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_darwin_arm64: 650970603b5946dc6041836ddcfa7a19d99b5da885e4687f64575508e99cf718
+  https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_linux_amd64: 70aa99784703a8d6569bbf0b1e43e1a91906a4166bf1a79de42050a6d0de7551
+  https://github.com/mvdan/sh/releases/download/v3.13.0/shfmt_v3.13.0_windows_amd64.exe: 62241aaf6b0ca236f8625d8892784b73fa67ad40bc677a1ad1a64ae395f6a7d5

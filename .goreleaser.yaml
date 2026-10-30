@@ -1,4 +1,14 @@
+version: 2
 builds:
-  - env:
+  - goos:
+      - linux
+      - darwin
+      - windows
+    env:
       - CGO_ENABLED=0
-
+checksum:
+  name_template: checksums.txt
+snapshot:
+  version_template: "{{ .Tag }}-next"
+release:
+  disable: true

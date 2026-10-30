@@ -1,11 +1,14 @@
 #!/bin/sh
+#/ script/fmt formats Go code and shell scripts.
 
 set -e
 
-cd "$(git rev-parse --show-toplevel)"
+CDPATH="" cd -- "$(dirname -- "$0")/.."
 
-script/bindown -q install gofumpt
+script/bindown -q install gofumpt shfmt
 
-git ls-files -o -c --exclude-standard -- *.go |
- script/handcrafted |
- xargs bin/gofumpt -w -extra
+git ls-files -o -c --exclude-standard '*.go' |
+  script/handcrafted |
+  xargs bin/gofumpt -w -extra
+
+bin/shfmt -ci -i 2 -sr -w -s ./script

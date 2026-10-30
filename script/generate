@@ -1,23 +1,45 @@
 #!/bin/sh
+#/ script/generate runs generators and tidies module dependencies.
+#/ `script/generate --check` checks the current files in a temporary worktree.
 
 set -e
 
-CDPATH="" cd -- "$(dirname -- "$(dirname -- "$0")")"
+CDPATH="" cd -- "$(dirname -- "$0")/.."
 
 if [ "$1" = "--check" ]; then
-  [ -z "$(git status --porcelain)" ] || {
-    git status
-    1>&2 echo "Running 'script/generate --check' requires a clean git working tree. Please commit or stash changes and try again."
-    exit 1
-  }
-  script/generate
-  [ -z "$(git status --porcelain)" ] || {
-    git status
-    1>&2 echo "script/generate resulted in changes. Please commit changes (or 'git reset --hard HEAD' if you aren't ready to commit changes)."
-    git diff
-    exit 1
-  }
+  GENTEMP="$(mktemp -d)"
+  git worktree add -q --detach --no-checkout "$GENTEMP"
+  trap 'git worktree remove -f "$GENTEMP"' EXIT
+  # shellcheck disable=SC2016 # Variables are expanded by the child shell.
+  git ls-files --cached --others --exclude-standard -z |
+    xargs -0 sh -ec '
+      target_root="$1"
+      shift
+      for file do
+        target="$target_root/$file"
+        if [ ! -e "./$file" ]; then
+          continue
+        fi
+        mkdir -p "$(dirname -- "$target")"
+        cp -p "./$file" "$target"
+      done
+    ' sh "$GENTEMP"
+  (
+    cd "$GENTEMP"
+    git add --all
+    script/generate
+    if ! git diff --exit-code; then
+      echo "script/generate resulted in changes." >&2
+      exit 1
+    fi
+    if [ -n "$(git ls-files --others --exclude-standard)" ]; then
+      echo "script/generate created untracked files:" >&2
+      git ls-files --others --exclude-standard >&2
+      exit 1
+    fi
+  )
   exit 0
 fi
 
 go generate ./...
+go mod tidy
