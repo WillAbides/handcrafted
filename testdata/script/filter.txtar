@@ -10,6 +10,18 @@ exec handcrafted -generated
 cmp stdout want-generated
 cmp stderr empty-output
 
+# The -z flag reads and writes NUL-delimited filenames.
+lines2nul files want-handcrafted want-generated
+stdin files
+exec handcrafted -z
+cmp stdout want-handcrafted
+cmp stderr empty-output
+
+stdin files
+exec handcrafted -z -generated
+cmp stdout want-generated
+cmp stderr empty-output
+
 -- files --
 generated.go
 plain.go

@@ -37,6 +37,10 @@ Use with `git ls-files` to list all handcrafted files in the git repo
 
 `git ls-files -- *.go | handcrafted`
 
+Add `-z` to read and write NUL-delimited file lists:
+
+`git ls-files -z -- '*.go' | handcrafted -z`
+
 Use with `go list` to get generated files from an arbitrary package:
 
 ```sh
@@ -61,9 +65,9 @@ if ! [ -f "bin/handcrafted" ]; then
   GOBIN="$(pwd)/bin" go install github.com/willabides/handcrafted@latest
 fi
 
-git ls-files -o -c --exclude-standard '*.go' |
-  bin/handcrafted |
-  xargs goimports -w
+git ls-files -z -o -c --exclude-standard '*.go' |
+  bin/handcrafted -z |
+  xargs -0 goimports -w
 ```
 
 ## Development
