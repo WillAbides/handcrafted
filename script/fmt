@@ -7,8 +7,8 @@ CDPATH="" cd -- "$(dirname -- "$0")/.."
 
 script/bindown -q install gofumpt shfmt
 
-git ls-files -o -c --exclude-standard '*.go' |
-  script/handcrafted |
-  xargs bin/gofumpt -w -extra
+git ls-files -z -o -c --exclude-standard '*.go' |
+  script/handcrafted -z |
+  xargs -0 bin/gofumpt -w -extra
 
 bin/shfmt -ci -i 2 -sr -w -s ./script
